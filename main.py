@@ -1,20 +1,16 @@
 import uvicorn
 from fastapi import FastAPI, status, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from schema import Book as SchemaBook, BookIn as SchemaBookIn
-from schema import Author as SchemaAuthor, AuthorIn as SchemaAuthorIn
+from schema import TechTalk as SchemaTechTalk, TechTalkIn as SchemaTechTalkIn
+from schema import User as SchemaUser, UserIn as SchemaUserIn
 from typing import List
 import sqlalchemy
-from sqlalchemy import create_engine, Table, Column, DateTime, ForeignKey, Integer, String, Float, Boolean
-from schema import Book
-from schema import Author
+from sqlalchemy import create_engine, Table, Column, DateTime, Integer, String, Boolean
 import databases
-from models import Book as ModelBook
-from models import Author as ModelAuthor
+
 from sqlalchemy.sql import func
 import os
 from dotenv import load_dotenv
-from sqlalchemy.orm import relationship
 load_dotenv('.env')
 
 # authentication
@@ -37,23 +33,28 @@ database = databases.Database(os.environ.get('DATABASE_URI'))
 
 metadata = sqlalchemy.MetaData()
 
-books = sqlalchemy.Table(
-    "books",
+techtalks = Table(
+    "techtalks",
     metadata,
     Column("id", Integer, primary_key=True, index=True),
     Column("title", String),
-    Column("rating", Float),
-    Column("completed", Boolean),
+    Column("description", String),
+    Column("thumbsup", Integer),
+    Column("completed", Boolean, default=False),
     Column("time_created", DateTime(timezone=True), server_default=func.now()),
     Column("time_updated", DateTime(timezone=True), onupdate=func.now()),
+
 )
 
-authors = sqlalchemy.Table(
-    "authors",
+users = Table(
+    "users",
     metadata,
     Column("id", Integer, primary_key=True, index=True),
-    Column("name", String),
-    Column("age", Integer),
+    Column("full_name", String, index=True),
+    Column("email", String, unique=True, index=True, nullable=False),
+    Column("hashed_password", String, nullable=False),
+    Column("is_active", Boolean, default=True),
+    Column("is_superuser", Boolean, default=False),
     Column("time_created", DateTime(timezone=True), server_default=func.now()),
     Column("time_updated", DateTime(timezone=True), onupdate=func.now()),
 )
@@ -90,73 +91,75 @@ async def root():
     return {"message": "Not Found"}
 
 
-@ app.post('/books/', response_model=SchemaBook, status_code=status.HTTP_201_CREATED)
-async def create_book(book: SchemaBookIn):
-    query = books.insert().values(title=book.title, rating=book.rating,
-                                  completed=book.completed)
+@ app.post('/techtalks/', response_model=SchemaTechTalk, status_code=status.HTTP_201_CREATED)
+async def create_techtalk(techtalk: SchemaTechTalkIn):
+    query = techtalks.insert().values(title=techtalk.title, description=techtalk.description,
+                                      thumbsup=techtalk.thumbsup, completed=techtalk.completed)
     last_record_id = await database.execute(query)
-    return {**book.dict(), "id": last_record_id}
+    return {**techtalk.dict(), "id": last_record_id}
 
 
-@app.post('/authors/', response_model=SchemaAuthor, status_code=status.HTTP_201_CREATED)
-async def create_author(author: SchemaAuthorIn):
-    query = authors.insert().values(name=author.name, age=author.age)
+@app.post('/users/', response_model=SchemaUser, status_code=status.HTTP_201_CREATED)
+async def create_user(user: SchemaUserIn):
+    query = users.insert().values(full_name=user.full_name, email=user.email,
+                                  is_active=user.is_active, is_superuser=user.is_superuser)
     last_record_id = await database.execute(query)
-    return {**author.dict(), "id": last_record_id}
+    return {**user.dict(), "id": last_record_id}
 
 
-@app.get('/books/', response_model=List[SchemaBook], status_code=status.HTTP_200_OK)
-async def get_books(skip: int = 0, take: int = 100):
-    query = books.select().offset(skip).limit(take)
+@app.get('/techtalks/', response_model=List[SchemaTechTalk], status_code=status.HTTP_200_OK)
+async def get_techtalks(skip: int = 0, take: int = 100):
+    query = techtalks.select().offset(skip).limit(take)
     return await database.fetch_all(query)
 
 
-@app.get('/authors/', response_model=List[SchemaAuthor], status_code=status.HTTP_200_OK)
-async def get_authors(skip: int = 0, take: int = 100):
-    query = authors.select().offset(skip).limit(take)
+@app.get('/users/', response_model=List[SchemaUser], status_code=status.HTTP_200_OK)
+async def get_users(skip: int = 0, take: int = 100):
+    query = users.select().offset(skip).limit(take)
     return await database.fetch_all(query)
 
 
-@app.put("/books/{book_id}/", response_model=SchemaBook, status_code=status.HTTP_200_OK)
-async def update_book(book_id: int, payload: SchemaBookIn):
-    query = books.update().where(books.c.id == book_id).values(
-        title=payload.title, rating=payload.rating, completed=payload.completed)
+@app.put("/techtalks/{techtalk_id}/", response_model=SchemaTechTalk, status_code=status.HTTP_200_OK)
+async def update_techtalk(techtalk_id: int, payload: SchemaTechTalkIn):
+    query = techtalks.update().where(techtalks.c.id == techtalk_id).values(
+        title=payload.title, description=payload.description,
+        thumbsup=payload.thumbsup, completed=payload.completed)
     await database.execute(query)
-    return {**payload.dict(), "id": book_id}
+    return {**payload.dict(), "id": techtalk_id}
 
 
-@app.put("/authors/{author_id}/", response_model=SchemaAuthor, status_code=status.HTTP_200_OK)
-async def update_author(author_id: int, payload: SchemaAuthorIn):
-    query = authors.update().where(authors.c.id == author_id).values(
+@app.put("/users/{user_id}/", response_model=SchemaUser, status_code=status.HTTP_200_OK)
+async def update_user(user_id: int, payload: SchemaUserIn):
+    query = users.update().where(users.c.id == user_id).values(
         name=payload.name, age=payload.age)
     await database.execute(query)
-    return {**payload.dict(), "id": author_id}
+    return {**payload.dict(), "id": user_id}
 
 
-@app.get("/books/{book_id}/", response_model=SchemaBook, status_code=status.HTTP_200_OK)
-async def getBookByID(book_id: int):
-    query = books.select().where(books.c.id == book_id)
+@app.get("/techtalks/{techtalk_id}/", response_model=SchemaTechTalk, status_code=status.HTTP_200_OK)
+async def getBookByID(techtalk_id: int):
+    query = techtalks.select().where(techtalks.c.id == techtalk_id)
     return await database.fetch_one(query)
 
 
-@app.get("/authors/{author_id}/", response_model=SchemaAuthor, status_code=status.HTTP_200_OK)
-async def getBookByID(author_id: int):
-    query = authors.select().where(authors.c.id == author_id)
+@app.get("/users/{user_id}/", response_model=SchemaUser, status_code=status.HTTP_200_OK)
+async def getBookByID(user_id: int):
+    query = users.select().where(users.c.id == user_id)
     return await database.fetch_one(query)
 
 
-@app.delete("/books/{book_id}/", status_code=status.HTTP_200_OK)
-async def delete_book(book_id: int):
-    query = books.delete().where(books.c.id == book_id)
+@app.delete("/techtalks/{techtalk_id}/", status_code=status.HTTP_200_OK)
+async def delete_techtalk(techtalk_id: int):
+    query = techtalks.delete().where(techtalks.c.id == techtalk_id)
     await database.execute(query)
-    return {"message": "Book with id: {} deleted successfully!".format(book_id)}
+    return {"message": "Tech Talk with id: {} deleted successfully!".format(techtalk_id)}
 
 
-@app.delete("/authors/{author_id}/", status_code=status.HTTP_200_OK)
-async def update_note(author_id: int):
-    query = authors.delete().where(authors.c.id == author_id)
+@app.delete("/users/{user_id}/", status_code=status.HTTP_200_OK)
+async def update_note(user_id: int):
+    query = users.delete().where(users.c.id == user_id)
     await database.execute(query)
-    return {"message": "Author with id: {} deleted successfully!".format(author_id)}
+    return {"message": "user with id: {} deleted successfully!".format(user_id)}
 
 
 # To run locally
