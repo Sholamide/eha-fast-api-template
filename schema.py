@@ -1,11 +1,12 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
 
 class TechTalkIn(BaseModel):
     title: str
     description: str
     thumbsup: int
-    completed: bool
+    completed: bool = False
 
     class Config:
         orm_mode = True
@@ -16,7 +17,7 @@ class TechTalk(BaseModel):
     title: str
     description: str
     thumbsup: int
-    completed: bool
+    completed: bool = False
 
     class Config:
         orm_mode = True
@@ -25,8 +26,8 @@ class TechTalk(BaseModel):
 class UserIn(BaseModel):
     full_name: str
     email: EmailStr
-    is_active: bool
-    is_superuser: bool
+    is_active: Optional[bool] = True
+    is_superuser: bool = False
 
     class Config:
         orm_mode = True

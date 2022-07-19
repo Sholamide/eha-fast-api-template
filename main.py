@@ -52,7 +52,7 @@ users = Table(
     Column("full_name", String, index=True),
     Column("email", String, unique=True, index=True, nullable=False),
     Column("hashed_password", String, nullable=False),
-    Column("is_active", Boolean, default=True),
+    Column("is_active", Boolean, default=False),
     Column("is_superuser", Boolean, default=False),
     Column("time_created", DateTime(timezone=True), server_default=func.now()),
     Column("time_updated", DateTime(timezone=True), onupdate=func.now()),
