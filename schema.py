@@ -1,37 +1,43 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
-class BookIn(BaseModel):
+class TechTalkIn(BaseModel):
     title: str
-    rating: float
+    description: str
+    thumbsup: int
     completed: bool
 
     class Config:
         orm_mode = True
 
 
-class Book(BaseModel):
+class TechTalk(BaseModel):
     id:  int
     title: str
-    rating: float
+    description: str
+    thumbsup: int
     completed: bool
 
     class Config:
         orm_mode = True
 
 
-class AuthorIn(BaseModel):
-    name: str
-    age: int
+class UserIn(BaseModel):
+    full_name: str
+    email: EmailStr
+    is_active: bool
+    is_superuser: bool
 
     class Config:
         orm_mode = True
 
 
-class Author(BaseModel):
+class User(BaseModel):
     id: int
-    name: str
-    age: int
+    full_name: str
+    email: EmailStr
+    is_active: bool
+    is_superuser: bool
 
     class Config:
         orm_mode = True
