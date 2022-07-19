@@ -43,7 +43,6 @@ techtalks = Table(
     Column("completed", Boolean, default=False),
     Column("time_created", DateTime(timezone=True), server_default=func.now()),
     Column("time_updated", DateTime(timezone=True), onupdate=func.now()),
-
 )
 
 users = Table(
@@ -64,7 +63,7 @@ engine = create_engine(
 )
 metadata.create_all(engine)
 
-app = FastAPI(title="EHA FASTAPI library project demonstration")
+app = FastAPI(title="FASTAPI library project spike demonstration")
 
 # to avoid csrftokenError
 app.add_middleware(
