@@ -1,7 +1,9 @@
 import uvicorn
 from fastapi import FastAPI, status, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from schemas import User as SchemaUser, UserIn as SchemaUserIn, UserInDB, TechTalk as SchemaTechTalk, TechTalkIn as SchemaTechTalkIn, TokenData, Token
+# from schemas import User as SchemaUser, UserIn as SchemaUserIn, UserInDB, TechTalk as SchemaTechTalk, TechTalkIn as SchemaTechTalkIn, TokenData, Token
+from schemas import User, UserCreate, UserInDB, UserUpdate
+from schemas import TechTalk, TechTalkCreate, TechTalkInDB, TechTalkUpdate, Token, TokenData
 from typing import List
 import sqlalchemy
 from sqlalchemy import create_engine, Table, Column, DateTime, Integer, String, Boolean
@@ -131,7 +133,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     return user
 
 
-async def get_current_active_user(current_user: SchemaUser = Depends(get_current_user)):
+async def get_current_active_user(current_user: User = Depends(get_current_user)):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -179,36 +181,36 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@ app.post('/techtalks/', response_model=SchemaTechTalk, status_code=status.HTTP_201_CREATED)
-async def create_techtalk(techtalk: SchemaTechTalkIn):
+@ app.post('/techtalks/', response_model=TechTalk, status_code=status.HTTP_201_CREATED)
+async def create_techtalk(techtalk: TechTalkCreate):
     query = techtalks.insert().values(title=techtalk.title, description=techtalk.description,
                                       thumbsup=techtalk.thumbsup, completed=techtalk.completed)
     last_record_id = await database.execute(query)
     return {**techtalk.dict(), "id": last_record_id}
 
 
-@app.post('/users/', response_model=SchemaUser, status_code=status.HTTP_201_CREATED)
-async def create_user(user: SchemaUserIn):
+@app.post('/users/', response_model=User, status_code=status.HTTP_201_CREATED)
+async def create_user(user: UserCreate):
     query = users.insert().values(full_name=user.full_name, email=user.email,
                                   is_active=user.is_active, is_superuser=user.is_superuser)
     last_record_id = await database.execute(query)
     return {**user.dict(), "id": last_record_id}
 
 
-@app.get('/techtalks/', response_model=List[SchemaTechTalk], status_code=status.HTTP_200_OK)
+@app.get('/techtalks/', response_model=List[TechTalk], status_code=status.HTTP_200_OK)
 async def get_techtalks(skip: int = 0, take: int = 100):
     query = techtalks.select().offset(skip).limit(take)
     return await database.fetch_all(query)
 
 
-@app.get('/users/', response_model=List[SchemaUser], status_code=status.HTTP_200_OK)
+@app.get('/users/', response_model=List[User], status_code=status.HTTP_200_OK)
 async def get_users(skip: int = 0, take: int = 100):
     query = users.select().offset(skip).limit(take)
     return await database.fetch_all(query)
 
 
-@app.put("/techtalks/{techtalk_id}/", response_model=SchemaTechTalk, status_code=status.HTTP_200_OK)
-async def update_techtalk(techtalk_id: int, payload: SchemaTechTalkIn):
+@app.put("/techtalks/{techtalk_id}/", response_model=TechTalk, status_code=status.HTTP_200_OK)
+async def update_techtalk(techtalk_id: int, payload: TechTalkUpdate):
     query = techtalks.update().where(techtalks.c.id == techtalk_id).values(
         title=payload.title, description=payload.description,
         thumbsup=payload.thumbsup, completed=payload.completed)
@@ -216,21 +218,21 @@ async def update_techtalk(techtalk_id: int, payload: SchemaTechTalkIn):
     return {**payload.dict(), "id": techtalk_id}
 
 
-@app.put("/users/{user_id}/", response_model=SchemaUser, status_code=status.HTTP_200_OK)
-async def update_user(user_id: int, payload: SchemaUserIn):
+@app.put("/users/{user_id}/", response_model=User, status_code=status.HTTP_200_OK)
+async def update_user(user_id: int, payload: UserUpdate):
     query = users.update().where(users.c.id == user_id).values(
         username=payload.username, full_name=payload.full_name, email=payload.full_name)
     await database.execute(query)
     return {**payload.dict(), "id": user_id}
 
 
-@app.get("/techtalks/{techtalk_id}/", response_model=SchemaTechTalk, status_code=status.HTTP_200_OK)
+@app.get("/techtalks/{techtalk_id}/", response_model=TechTalk, status_code=status.HTTP_200_OK)
 async def getBookByID(techtalk_id: int):
     query = techtalks.select().where(techtalks.c.id == techtalk_id)
     return await database.fetch_one(query)
 
 
-@app.get("/users/{user_id}/", response_model=SchemaUser, status_code=status.HTTP_200_OK)
+@app.get("/users/{user_id}/", response_model=User, status_code=status.HTTP_200_OK)
 async def getBookByID(user_id: int):
     query = users.select().where(users.c.id == user_id)
     return await database.fetch_one(query)
@@ -250,13 +252,13 @@ async def update_note(user_id: int):
     return {"message": "user with id: {} deleted successfully!".format(user_id)}
 
 
-@app.get("/users/me/", response_model=SchemaUser)
-async def read_users_me(current_user: SchemaUser = Depends(get_current_active_user)):
+@app.get("/users/me/", response_model=User)
+async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
 
 @app.get("/users/me/items/")
-async def read_own_items(current_user: SchemaUser = Depends(get_current_active_user)):
+async def read_own_items(current_user: User = Depends(get_current_active_user)):
     return [{"item_id": "Foo", "owner": current_user.username}]
 
 # To run locally
